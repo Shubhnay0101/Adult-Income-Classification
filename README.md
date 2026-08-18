@@ -203,7 +203,7 @@ project-folder/
 ├── README.md
 ├── test_data.csv
 │
-└── models/
+└── model/
 ├── logistic_regression.pkl
 ├── decision_tree.pkl
 ├── knn.pkl
