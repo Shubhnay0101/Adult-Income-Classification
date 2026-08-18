@@ -177,7 +177,7 @@ if predict_clicked:
 
 
     # =====================================================
-    # LOADER PLACEHOLDER
+    # LOADER
     # =====================================================
 
     loader_placeholder = st.empty()
@@ -217,6 +217,7 @@ if predict_clicked:
 
         <div class="loader-container">
             <div class="loader"></div>
+
             <div class="loader-text">
                 Processing your prediction...
             </div>
@@ -387,7 +388,7 @@ if predict_clicked:
 
 
     # =====================================================
-    # HANDLE PROCESSING ERROR
+    # HANDLE ERROR
     # =====================================================
 
     if processing_error is not None:
@@ -456,10 +457,6 @@ if predict_clicked:
         )
 
 
-        # -------------------------------------------------
-        # FIRST ROW
-        # -------------------------------------------------
-
         metric_col1, metric_col2, metric_col3 = st.columns(3)
 
         metric_col1.metric(
@@ -477,10 +474,6 @@ if predict_clicked:
             f"{recall:.4f}"
         )
 
-
-        # -------------------------------------------------
-        # SECOND ROW
-        # -------------------------------------------------
 
         metric_col4, metric_col5, metric_col6 = st.columns(3)
 
@@ -533,12 +526,25 @@ if predict_clicked:
 
     with st.expander(
             "Classification Report",
-            expanded=False
+            expanded=True
     ):
 
         report_df = pd.DataFrame(
             report
         ).transpose()
+
+
+        # -------------------------------------------------
+        # RENAME CLASS LABELS
+        # -------------------------------------------------
+
+        report_df = report_df.rename(
+            index={
+                "0": "<=50K",
+                "1": ">50K"
+            }
+        )
+
 
         st.dataframe(
             report_df,
