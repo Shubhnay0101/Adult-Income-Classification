@@ -16,9 +16,9 @@ from sklearn.metrics import (
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # PAGE CONFIGURATION
-# ---------------------------------------------------------
+# =========================================================
 
 st.set_page_config(
     page_title="Adult Census Income Prediction",
@@ -26,7 +26,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Adult Census Income Prediction")
+st.title(" Adult Census Income Prediction")
 
 st.write(
     "Machine Learning Classification Application"
@@ -38,9 +38,9 @@ st.info(
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # MODEL CONFIGURATION
-# ---------------------------------------------------------
+# =========================================================
 
 model_options = {
     "Logistic Regression": "models/logistic_regression.pkl",
@@ -51,11 +51,11 @@ model_options = {
 }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # UPLOAD TEST DATA
-# ---------------------------------------------------------
+# =========================================================
 
-st.subheader("📂 Upload Test Data")
+st.subheader(" Upload Test Data")
 
 uploaded_file = st.file_uploader(
     "Choose a CSV file",
@@ -65,7 +65,10 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
 
-    # Read uploaded CSV
+    # -----------------------------------------------------
+    # READ CSV
+    # -----------------------------------------------------
+
     df = pd.read_csv(uploaded_file)
 
     st.success("Test data uploaded successfully!")
@@ -74,7 +77,7 @@ if uploaded_file is not None:
     # DATA PREVIEW
     # -----------------------------------------------------
 
-    st.subheader("🔍 Test Data Preview")
+    st.subheader(" Test Data Preview")
 
     st.dataframe(
         df.head(),
@@ -90,11 +93,11 @@ if uploaded_file is not None:
     )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # MODEL SELECTION
-    # -----------------------------------------------------
+    # =====================================================
 
-    st.subheader("🤖 Select Machine Learning Model")
+    st.subheader(" Select Machine Learning Model")
 
     selected_model = st.selectbox(
         "Choose a model",
@@ -104,9 +107,9 @@ if uploaded_file is not None:
     model_path = model_options[selected_model]
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # LOAD MODEL
-    # -----------------------------------------------------
+    # =====================================================
 
     if not os.path.exists(model_path):
 
@@ -136,193 +139,277 @@ if uploaded_file is not None:
         st.stop()
 
 
-    # -----------------------------------------------------
-    # PREDICTION
-    # -----------------------------------------------------
+    # =====================================================
+    # GENERATE PREDICTIONS
+    # =====================================================
 
-    st.subheader("🔮 Generate Predictions")
+    st.subheader(" Generate Predictions")
 
     if st.button(
-            "Predict Income",
+            " Predict Income",
             type="primary"
     ):
 
-        try:
+        with st.status(
+                " Processing your data...",
+                expanded=True
+        ) as status:
 
-            # Separate features and actual target
-            X_test = df.drop(
-                columns=["income"]
-            )
+            try:
 
-            y_test = df["income"]
+                # -------------------------------------------------
+                # STEP 1: PREPARE DATA
+                # -------------------------------------------------
 
+                st.write(
+                    " Preparing test data..."
+                )
 
-            # Generate predictions
-            y_pred = model.predict(X_test)
+                X_test = df.drop(
+                    columns=["income"]
+                )
 
-            # Generate probabilities for AUC
-            y_prob = model.predict_proba(X_test)[:, 1]
-
-
-            # -------------------------------------------------
-            # PREDICTION RESULTS
-            # -------------------------------------------------
-
-            st.subheader("📋 Prediction Results")
-
-            result_df = df.copy()
-
-            result_df["Predicted Income"] = y_pred
-
-            st.dataframe(
-                result_df,
-                use_container_width=True
-            )
+                y_test = df["income"]
 
 
-            # -------------------------------------------------
-            # DOWNLOAD RESULTS
-            # -------------------------------------------------
+                # -------------------------------------------------
+                # STEP 2: MODEL PREDICTION
+                # -------------------------------------------------
 
-            csv_data = result_df.to_csv(
-                index=False
-            )
+                st.write(
+                    " Running model prediction..."
+                )
 
-            st.download_button(
-                label="⬇️ Download Predictions",
-                data=csv_data,
-                file_name="income_predictions.csv",
-                mime="text/csv"
-            )
+                y_pred = model.predict(X_test)
 
 
-            # -------------------------------------------------
-            # MODEL METRICS
-            # -------------------------------------------------
+                # -------------------------------------------------
+                # STEP 3: PREDICTION PROBABILITY
+                # -------------------------------------------------
 
-            accuracy = accuracy_score(
-                y_test,
-                y_pred
-            )
+                st.write(
+                    " Calculating prediction probabilities..."
+                )
 
-            precision = precision_score(
-                y_test,
-                y_pred
-            )
-
-            recall = recall_score(
-                y_test,
-                y_pred
-            )
-
-            f1 = f1_score(
-                y_test,
-                y_pred
-            )
-
-            auc = roc_auc_score(
-                y_test,
-                y_prob
-            )
-
-            mcc = matthews_corrcoef(
-                y_test,
-                y_pred
-            )
+                y_prob = model.predict_proba(X_test)[:, 1]
 
 
-            # -------------------------------------------------
-            # DISPLAY METRICS
-            # -------------------------------------------------
+                # -------------------------------------------------
+                # STEP 4: CALCULATE METRICS
+                # -------------------------------------------------
 
-            st.subheader("📊 Model Evaluation")
+                st.write(
+                    " Calculating evaluation metrics..."
+                )
 
-            col1, col2, col3 = st.columns(3)
+                accuracy = accuracy_score(
+                    y_test,
+                    y_pred
+                )
 
-            col1.metric(
-                "Accuracy",
-                f"{accuracy:.4f}"
-            )
+                precision = precision_score(
+                    y_test,
+                    y_pred
+                )
 
-            col2.metric(
-                "Precision",
-                f"{precision:.4f}"
-            )
+                recall = recall_score(
+                    y_test,
+                    y_pred
+                )
 
-            col3.metric(
-                "Recall",
-                f"{recall:.4f}"
-            )
+                f1 = f1_score(
+                    y_test,
+                    y_pred
+                )
 
+                auc = roc_auc_score(
+                    y_test,
+                    y_prob
+                )
 
-            col4, col5, col6 = st.columns(3)
-
-            col4.metric(
-                "F1 Score",
-                f"{f1:.4f}"
-            )
-
-            col5.metric(
-                "AUC",
-                f"{auc:.4f}"
-            )
-
-            col6.metric(
-                "MCC",
-                f"{mcc:.4f}"
-            )
+                mcc = matthews_corrcoef(
+                    y_test,
+                    y_pred
+                )
 
 
-            # -------------------------------------------------
-            # CONFUSION MATRIX
-            # -------------------------------------------------
+                # -------------------------------------------------
+                # STEP 5: CONFUSION MATRIX
+                # -------------------------------------------------
 
-            st.subheader("🔲 Confusion Matrix")
+                st.write(
+                    " Generating confusion matrix..."
+                )
 
-            cm = confusion_matrix(
-                y_test,
-                y_pred
-            )
-
-            cm_df = pd.DataFrame(
-                cm,
-                index=["Actual <=50K", "Actual >50K"],
-                columns=["Predicted <=50K", "Predicted >50K"]
-            )
-
-            st.dataframe(
-                cm_df,
-                use_container_width=True
-            )
+                cm = confusion_matrix(
+                    y_test,
+                    y_pred
+                )
 
 
-            # -------------------------------------------------
-            # CLASSIFICATION REPORT
-            # -------------------------------------------------
+                # -------------------------------------------------
+                # STEP 6: CLASSIFICATION REPORT
+                # -------------------------------------------------
 
-            st.subheader("📄 Classification Report")
+                st.write(
+                    " Generating classification report..."
+                )
 
-            report = classification_report(
-                y_test,
-                y_pred,
-                output_dict=True
-            )
-
-            report_df = pd.DataFrame(report).transpose()
-
-            st.dataframe(
-                report_df,
-                use_container_width=True
-            )
+                report = classification_report(
+                    y_test,
+                    y_pred,
+                    output_dict=True
+                )
 
 
-        except Exception as e:
+                # -------------------------------------------------
+                # COMPLETED
+                # -------------------------------------------------
 
-            st.error(
-                "Prediction failed."
-            )
+                status.update(
+                    label=" Prediction completed successfully!",
+                    state="complete",
+                    expanded=False
+                )
 
-            st.exception(e)
+
+                # =================================================
+                # PREDICTION RESULTS
+                # =================================================
+
+                st.subheader("📋 Prediction Results")
+
+                result_df = df.copy()
+
+                result_df["Predicted Income"] = y_pred
+
+                st.dataframe(
+                    result_df,
+                    use_container_width=True
+                )
+
+
+                # =================================================
+                # DOWNLOAD PREDICTIONS
+                # =================================================
+
+                csv_data = result_df.to_csv(
+                    index=False
+                )
+
+                st.download_button(
+                    label="⬇ Download Predictions",
+                    data=csv_data,
+                    file_name="income_predictions.csv",
+                    mime="text/csv"
+                )
+
+
+                # =================================================
+                # MODEL EVALUATION
+                # =================================================
+
+                st.subheader("Model Evaluation")
+
+
+                # -------------------------------------------------
+                # FIRST ROW
+                # -------------------------------------------------
+
+                col1, col2, col3 = st.columns(3)
+
+                col1.metric(
+                    "Accuracy",
+                    f"{accuracy:.4f}"
+                )
+
+                col2.metric(
+                    "Precision",
+                    f"{precision:.4f}"
+                )
+
+                col3.metric(
+                    "Recall",
+                    f"{recall:.4f}"
+                )
+
+
+                # -------------------------------------------------
+                # SECOND ROW
+                # -------------------------------------------------
+
+                col4, col5, col6 = st.columns(3)
+
+                col4.metric(
+                    "F1 Score",
+                    f"{f1:.4f}"
+                )
+
+                col5.metric(
+                    "AUC",
+                    f"{auc:.4f}"
+                )
+
+                col6.metric(
+                    "MCC",
+                    f"{mcc:.4f}"
+                )
+
+
+                # =================================================
+                # CONFUSION MATRIX
+                # =================================================
+
+                st.subheader("Confusion Matrix")
+
+                cm_df = pd.DataFrame(
+                    cm,
+                    index=[
+                        "Actual <=50K",
+                        "Actual >50K"
+                    ],
+                    columns=[
+                        "Predicted <=50K",
+                        "Predicted >50K"
+                    ]
+                )
+
+                st.dataframe(
+                    cm_df,
+                    use_container_width=True
+                )
+
+
+                # =================================================
+                # CLASSIFICATION REPORT
+                # =================================================
+
+                st.subheader("📄 Classification Report")
+
+                report_df = pd.DataFrame(
+                    report
+                ).transpose()
+
+                st.dataframe(
+                    report_df,
+                    use_container_width=True
+                )
+
+
+            except Exception as e:
+
+                status.update(
+                    label="Prediction failed",
+                    state="error",
+                    expanded=True
+                )
+
+                st.error(
+                    "An error occurred while generating predictions."
+                )
+
+                st.exception(e)
+
 
 else:
 
