@@ -1,5 +1,4 @@
 import os
-
 import joblib
 import pandas as pd
 import streamlit as st
@@ -26,7 +25,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title(" Adult Census Income Prediction")
+st.title("Adult Census Income Prediction")
 
 st.write(
     "Machine Learning Classification Application"
@@ -55,7 +54,7 @@ model_options = {
 # UPLOAD TEST DATA
 # =========================================================
 
-st.subheader(" Upload Test Data")
+st.subheader("Upload Test Data")
 
 uploaded_file = st.file_uploader(
     "Choose a CSV file",
@@ -65,31 +64,54 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
 
-    # -----------------------------------------------------
+    # =====================================================
     # READ CSV
-    # -----------------------------------------------------
+    # =====================================================
 
-    df = pd.read_csv(uploaded_file)
+    try:
+        df = pd.read_csv(uploaded_file)
+
+    except Exception as e:
+        st.error("Unable to read the uploaded CSV file.")
+        st.exception(e)
+        st.stop()
 
     st.success("Test data uploaded successfully!")
 
-    # -----------------------------------------------------
-    # DATA PREVIEW
-    # -----------------------------------------------------
+    # =====================================================
+    # VALIDATE TARGET COLUMN
+    # =====================================================
 
-    st.subheader(" Test Data Preview")
+    if "income" not in df.columns:
+
+        st.error(
+            "The uploaded CSV must contain an 'income' column "
+            "for evaluation."
+        )
+
+        st.stop()
+
+    # =====================================================
+    # DATA PREVIEW
+    # =====================================================
+
+    st.subheader("Test Data Preview")
 
     st.dataframe(
         df.head(),
         use_container_width=True
     )
 
-    st.write(
-        f"*Number of records:* {df.shape[0]}"
+    col1, col2 = st.columns(2)
+
+    col1.metric(
+        "Number of Records",
+        df.shape[0]
     )
 
-    st.write(
-        f"*Number of features:* {df.shape[1] - 1}"
+    col2.metric(
+        "Number of Features",
+        df.shape[1] - 1
     )
 
 
@@ -97,7 +119,7 @@ if uploaded_file is not None:
     # MODEL SELECTION
     # =====================================================
 
-    st.subheader(" Select Machine Learning Model")
+    st.subheader("Select Machine Learning Model")
 
     selected_model = st.selectbox(
         "Choose a model",
@@ -108,61 +130,61 @@ if uploaded_file is not None:
 
 
     # =====================================================
-    # LOAD MODEL
+    # PREDICTION
     # =====================================================
 
-    if not os.path.exists(model_path):
+    st.subheader("Generate Predictions")
 
-        st.error(
-            f"Model file not found: {model_path}"
-        )
-
-        st.stop()
-
-
-    try:
-
-        model = joblib.load(model_path)
-
-        st.success(
-            f"{selected_model} loaded successfully!"
-        )
-
-    except Exception as e:
-
-        st.error(
-            f"Unable to load {selected_model}."
-        )
-
-        st.exception(e)
-
-        st.stop()
+    predict_clicked = st.button(
+        "Predict Income",
+        type="primary",
+        use_container_width=True
+    )
 
 
-    # =====================================================
-    # GENERATE PREDICTIONS
-    # =====================================================
+    if predict_clicked:
 
-    st.subheader(" Generate Predictions")
+        # =================================================
+        # CHECK MODEL FILE
+        # =================================================
 
-    if st.button(
-            " Predict Income",
-            type="primary"
-    ):
+        if not os.path.exists(model_path):
+
+            st.error(
+                f"Model file not found: {model_path}"
+            )
+
+            st.stop()
+
+
+        # =================================================
+        # PROCESSING STATUS
+        # =================================================
 
         with st.status(
-                " Processing your data...",
+                "Processing prediction...",
                 expanded=True
         ) as status:
 
             try:
 
-                # -------------------------------------------------
-                # STEP 1: PREPARE DATA
-                # -------------------------------------------------
+                # -----------------------------------------
+                # STEP 1 - LOAD MODEL
+                # -----------------------------------------
 
                 st.write(
-                    " Preparing test data..."
+                    f"Loading {selected_model} model..."
+                )
+
+                model = joblib.load(model_path)
+
+
+                # -----------------------------------------
+                # STEP 2 - PREPARE TEST DATA
+                # -----------------------------------------
+
+                st.write(
+                    "Preparing test data..."
                 )
 
                 X_test = df.drop(
@@ -172,34 +194,46 @@ if uploaded_file is not None:
                 y_test = df["income"]
 
 
-                # -------------------------------------------------
-                # STEP 2: MODEL PREDICTION
-                # -------------------------------------------------
+                # -----------------------------------------
+                # STEP 3 - GENERATE PREDICTIONS
+                # -----------------------------------------
 
                 st.write(
-                    " Running model prediction..."
+                    "Generating income predictions..."
                 )
 
                 y_pred = model.predict(X_test)
 
 
-                # -------------------------------------------------
-                # STEP 3: PREDICTION PROBABILITY
-                # -------------------------------------------------
+                # -----------------------------------------
+                # STEP 4 - CALCULATE PROBABILITIES
+                # -----------------------------------------
 
                 st.write(
-                    " Calculating prediction probabilities..."
+                    "Calculating prediction probabilities..."
                 )
 
-                y_prob = model.predict_proba(X_test)[:, 1]
+                y_prob = None
+
+                if hasattr(model, "predict_proba"):
+
+                    probabilities = model.predict_proba(X_test)
+
+                    if probabilities.shape[1] == 2:
+
+                        y_prob = probabilities[:, 1]
+
+                    else:
+
+                        y_prob = None
 
 
-                # -------------------------------------------------
-                # STEP 4: CALCULATE METRICS
-                # -------------------------------------------------
+                # -----------------------------------------
+                # STEP 5 - CALCULATE METRICS
+                # -----------------------------------------
 
                 st.write(
-                    " Calculating evaluation metrics..."
+                    "Calculating evaluation metrics..."
                 )
 
                 accuracy = accuracy_score(
@@ -209,22 +243,20 @@ if uploaded_file is not None:
 
                 precision = precision_score(
                     y_test,
-                    y_pred
+                    y_pred,
+                    zero_division=0
                 )
 
                 recall = recall_score(
                     y_test,
-                    y_pred
+                    y_pred,
+                    zero_division=0
                 )
 
                 f1 = f1_score(
                     y_test,
-                    y_pred
-                )
-
-                auc = roc_auc_score(
-                    y_test,
-                    y_prob
+                    y_pred,
+                    zero_division=0
                 )
 
                 mcc = matthews_corrcoef(
@@ -233,12 +265,31 @@ if uploaded_file is not None:
                 )
 
 
-                # -------------------------------------------------
-                # STEP 5: CONFUSION MATRIX
-                # -------------------------------------------------
+                # -----------------------------------------
+                # AUC SCORE
+                # -----------------------------------------
+
+                if y_prob is not None:
+
+                    auc = roc_auc_score(
+                        y_test,
+                        y_prob
+                    )
+
+                else:
+
+                    auc = roc_auc_score(
+                        y_test,
+                        y_pred
+                    )
+
+
+                # -----------------------------------------
+                # STEP 6 - CONFUSION MATRIX
+                # -----------------------------------------
 
                 st.write(
-                    " Generating confusion matrix..."
+                    "Generating confusion matrix..."
                 )
 
                 cm = confusion_matrix(
@@ -247,27 +298,28 @@ if uploaded_file is not None:
                 )
 
 
-                # -------------------------------------------------
-                # STEP 6: CLASSIFICATION REPORT
-                # -------------------------------------------------
+                # -----------------------------------------
+                # STEP 7 - CLASSIFICATION REPORT
+                # -----------------------------------------
 
                 st.write(
-                    " Generating classification report..."
+                    "Generating classification report..."
                 )
 
                 report = classification_report(
                     y_test,
                     y_pred,
-                    output_dict=True
+                    output_dict=True,
+                    zero_division=0
                 )
 
 
-                # -------------------------------------------------
-                # COMPLETED
-                # -------------------------------------------------
+                # -----------------------------------------
+                # COMPLETE
+                # -----------------------------------------
 
                 status.update(
-                    label=" Prediction completed successfully!",
+                    label="Prediction completed successfully!",
                     state="complete",
                     expanded=False
                 )
@@ -277,123 +329,135 @@ if uploaded_file is not None:
                 # PREDICTION RESULTS
                 # =================================================
 
-                st.subheader("📋 Prediction Results")
+                with st.expander(
+                        "Prediction Results",
+                        expanded=True
+                ):
 
-                result_df = df.copy()
+                    result_df = df.copy()
 
-                result_df["Predicted Income"] = y_pred
+                    result_df["Predicted Income"] = y_pred
 
-                st.dataframe(
-                    result_df,
-                    use_container_width=True
-                )
+                    st.dataframe(
+                        result_df,
+                        use_container_width=True
+                    )
 
 
-                # =================================================
-                # DOWNLOAD PREDICTIONS
-                # =================================================
+                    # ---------------------------------------------
+                    # DOWNLOAD PREDICTIONS
+                    # ---------------------------------------------
 
-                csv_data = result_df.to_csv(
-                    index=False
-                )
+                    csv_data = result_df.to_csv(
+                        index=False
+                    )
 
-                st.download_button(
-                    label="⬇ Download Predictions",
-                    data=csv_data,
-                    file_name="income_predictions.csv",
-                    mime="text/csv"
-                )
+                    st.download_button(
+                        label="Download Predictions",
+                        data=csv_data,
+                        file_name="income_predictions.csv",
+                        mime="text/csv"
+                    )
 
 
                 # =================================================
                 # MODEL EVALUATION
                 # =================================================
 
-                st.subheader("Model Evaluation")
+                with st.expander(
+                        "Model Evaluation",
+                        expanded=True
+                ):
+
+                    st.write(
+                        f"Selected Model: *{selected_model}*"
+                    )
 
 
-                # -------------------------------------------------
-                # FIRST ROW
-                # -------------------------------------------------
+                    # ---------------------------------------------
+                    # METRICS
+                    # ---------------------------------------------
 
-                col1, col2, col3 = st.columns(3)
+                    metric_col1, metric_col2, metric_col3 = st.columns(3)
 
-                col1.metric(
-                    "Accuracy",
-                    f"{accuracy:.4f}"
-                )
+                    metric_col1.metric(
+                        "Accuracy",
+                        f"{accuracy:.4f}"
+                    )
 
-                col2.metric(
-                    "Precision",
-                    f"{precision:.4f}"
-                )
+                    metric_col2.metric(
+                        "Precision",
+                        f"{precision:.4f}"
+                    )
 
-                col3.metric(
-                    "Recall",
-                    f"{recall:.4f}"
-                )
+                    metric_col3.metric(
+                        "Recall",
+                        f"{recall:.4f}"
+                    )
 
 
-                # -------------------------------------------------
-                # SECOND ROW
-                # -------------------------------------------------
+                    metric_col4, metric_col5, metric_col6 = st.columns(3)
 
-                col4, col5, col6 = st.columns(3)
+                    metric_col4.metric(
+                        "F1 Score",
+                        f"{f1:.4f}"
+                    )
 
-                col4.metric(
-                    "F1 Score",
-                    f"{f1:.4f}"
-                )
+                    metric_col5.metric(
+                        "AUC Score",
+                        f"{auc:.4f}"
+                    )
 
-                col5.metric(
-                    "AUC",
-                    f"{auc:.4f}"
-                )
-
-                col6.metric(
-                    "MCC",
-                    f"{mcc:.4f}"
-                )
+                    metric_col6.metric(
+                        "MCC Score",
+                        f"{mcc:.4f}"
+                    )
 
 
                 # =================================================
                 # CONFUSION MATRIX
                 # =================================================
 
-                st.subheader("Confusion Matrix")
+                with st.expander(
+                        "Confusion Matrix",
+                        expanded=True
+                ):
 
-                cm_df = pd.DataFrame(
-                    cm,
-                    index=[
-                        "Actual <=50K",
-                        "Actual >50K"
-                    ],
-                    columns=[
-                        "Predicted <=50K",
-                        "Predicted >50K"
-                    ]
-                )
+                    cm_df = pd.DataFrame(
+                        cm,
+                        index=[
+                            "Actual <=50K",
+                            "Actual >50K"
+                        ],
+                        columns=[
+                            "Predicted <=50K",
+                            "Predicted >50K"
+                        ]
+                    )
 
-                st.dataframe(
-                    cm_df,
-                    use_container_width=True
-                )
+                    st.dataframe(
+                        cm_df,
+                        use_container_width=True
+                    )
 
 
                 # =================================================
                 # CLASSIFICATION REPORT
                 # =================================================
 
-                st.subheader("📄 Classification Report")
+                with st.expander(
+                        "Classification Report",
+                        expanded=False
+                ):
 
-                report_df = pd.DataFrame(
-                    report
-                ).transpose()
+                    report_df = pd.DataFrame(
+                        report
+                    ).transpose()
 
-                st.dataframe(
-                    report_df,
-                    use_container_width=True
-                )
+                    st.dataframe(
+                        report_df,
+                        use_container_width=True
+                    )
 
 
             except Exception as e:
