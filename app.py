@@ -43,11 +43,11 @@ st.info(
 # =========================================================
 
 model_options = {
-    "Logistic Regression": "models/logistic_regression.pkl",
-    "Decision Tree": "models/decision_tree.pkl",
-    "KNN": "models/knn.pkl",
-    "Naive Bayes": "models/naive_bayes.pkl",
-    "Random Forest": "models/random_forest.pkl"
+    "Logistic Regression": "model/logistic_regression.pkl",
+    "Decision Tree": "model/decision_tree.pkl",
+    "KNN": "model/knn.pkl",
+    "Naive Bayes": "model/naive_bayes.pkl",
+    "Random Forest": "model/random_forest.pkl"
 }
 
 
