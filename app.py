@@ -177,283 +177,370 @@ if predict_clicked:
 
 
     # =====================================================
+    # LOADER PLACEHOLDER
+    # =====================================================
+
+    loader_placeholder = st.empty()
+
+    loader_placeholder.markdown(
+        """
+        <style>
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loader-container {
+            text-align: center;
+            padding: 35px;
+        }
+
+        .loader {
+            border: 5px solid #e6e6e6;
+            border-top: 5px solid #555555;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        .loader-text {
+            margin-top: 15px;
+            font-size: 18px;
+        }
+        </style>
+
+        <div class="loader-container">
+            <div class="loader"></div>
+            <div class="loader-text">
+                Processing your prediction...
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+    # =====================================================
+    # VARIABLES
+    # =====================================================
+
+    model = None
+    y_pred = None
+    y_prob = None
+
+    accuracy = None
+    precision = None
+    recall = None
+    f1 = None
+    auc = None
+    mcc = None
+
+    cm = None
+    report = None
+
+    processing_error = None
+
+
+    # =====================================================
     # PROCESSING
     # =====================================================
 
     try:
 
-        with st.spinner("Processing your prediction..."):
+        # -------------------------------------------------
+        # LOAD MODEL
+        # -------------------------------------------------
 
-            # -------------------------------------------------
-            # LOAD MODEL
-            # -------------------------------------------------
-
-            model = joblib.load(
-                model_path
-            )
+        model = joblib.load(
+            model_path
+        )
 
 
-            # -------------------------------------------------
-            # PREPARE TEST DATA
-            # -------------------------------------------------
+        # -------------------------------------------------
+        # PREPARE TEST DATA
+        # -------------------------------------------------
 
-            X_test = df.drop(
-                columns=["income"]
-            )
+        X_test = df.drop(
+            columns=["income"]
+        )
 
-            y_test = df["income"]
+        y_test = df["income"]
 
 
-            # -------------------------------------------------
-            # GENERATE PREDICTIONS
-            # -------------------------------------------------
+        # -------------------------------------------------
+        # GENERATE PREDICTIONS
+        # -------------------------------------------------
 
-            y_pred = model.predict(
+        y_pred = model.predict(
+            X_test
+        )
+
+
+        # -------------------------------------------------
+        # PREDICTION PROBABILITY
+        # -------------------------------------------------
+
+        if hasattr(
+                model,
+                "predict_proba"
+        ):
+
+            probabilities = model.predict_proba(
                 X_test
             )
 
+            if probabilities.shape[1] >= 2:
 
-            # -------------------------------------------------
-            # PREDICTION PROBABILITY
-            # -------------------------------------------------
-
-            y_prob = None
-
-            if hasattr(
-                    model,
-                    "predict_proba"
-            ):
-
-                probabilities = model.predict_proba(
-                    X_test
-                )
-
-                if probabilities.shape[1] >= 2:
-
-                    y_prob = probabilities[:, 1]
+                y_prob = probabilities[:, 1]
 
 
-            # -------------------------------------------------
-            # EVALUATION METRICS
-            # -------------------------------------------------
+        # -------------------------------------------------
+        # EVALUATION METRICS
+        # -------------------------------------------------
 
-            accuracy = accuracy_score(
+        accuracy = accuracy_score(
+            y_test,
+            y_pred
+        )
+
+        precision = precision_score(
+            y_test,
+            y_pred,
+            zero_division=0
+        )
+
+        recall = recall_score(
+            y_test,
+            y_pred,
+            zero_division=0
+        )
+
+        f1 = f1_score(
+            y_test,
+            y_pred,
+            zero_division=0
+        )
+
+        mcc = matthews_corrcoef(
+            y_test,
+            y_pred
+        )
+
+
+        # -------------------------------------------------
+        # AUC SCORE
+        # -------------------------------------------------
+
+        if y_prob is not None:
+
+            auc = roc_auc_score(
                 y_test,
-                y_pred
+                y_prob
             )
 
-            precision = precision_score(
-                y_test,
-                y_pred,
-                zero_division=0
-            )
+        else:
 
-            recall = recall_score(
-                y_test,
-                y_pred,
-                zero_division=0
-            )
-
-            f1 = f1_score(
-                y_test,
-                y_pred,
-                zero_division=0
-            )
-
-            mcc = matthews_corrcoef(
-                y_test,
-                y_pred
-            )
-
-
-            # -------------------------------------------------
-            # AUC SCORE
-            # -------------------------------------------------
-
-            if y_prob is not None:
-
-                auc = roc_auc_score(
-                    y_test,
-                    y_prob
-                )
-
-            else:
-
-                auc = roc_auc_score(
-                    y_test,
-                    y_pred
-                )
-
-
-            # -------------------------------------------------
-            # CONFUSION MATRIX
-            # -------------------------------------------------
-
-            cm = confusion_matrix(
+            auc = roc_auc_score(
                 y_test,
                 y_pred
             )
 
 
-            # -------------------------------------------------
-            # CLASSIFICATION REPORT
-            # -------------------------------------------------
-
-            report = classification_report(
-                y_test,
-                y_pred,
-                output_dict=True,
-                zero_division=0
-            )
-
-
-        # =====================================================
-        # PREDICTION RESULTS
-        # =====================================================
-
-        with st.expander(
-                "Prediction Results",
-                expanded=True
-        ):
-
-            result_df = df.copy()
-
-            result_df["Predicted Income"] = y_pred
-
-            st.dataframe(
-                result_df,
-                use_container_width=True
-            )
-
-
-            # -------------------------------------------------
-            # DOWNLOAD PREDICTIONS
-            # -------------------------------------------------
-
-            csv_data = result_df.to_csv(
-                index=False
-            )
-
-            st.download_button(
-                label="Download Predictions",
-                data=csv_data,
-                file_name="income_predictions.csv",
-                mime="text/csv"
-            )
-
-
-        # =====================================================
-        # MODEL EVALUATION
-        # =====================================================
-
-        with st.expander(
-                "Model Evaluation",
-                expanded=True
-        ):
-
-            st.write(
-                f"Selected Model: *{selected_model}*"
-            )
-
-            st.write(
-                "Evaluation Metrics"
-            )
-
-
-            # -------------------------------------------------
-            # FIRST ROW
-            # -------------------------------------------------
-
-            metric_col1, metric_col2, metric_col3 = st.columns(3)
-
-            metric_col1.metric(
-                "Accuracy",
-                f"{accuracy:.4f}"
-            )
-
-            metric_col2.metric(
-                "Precision",
-                f"{precision:.4f}"
-            )
-
-            metric_col3.metric(
-                "Recall",
-                f"{recall:.4f}"
-            )
-
-
-            # -------------------------------------------------
-            # SECOND ROW
-            # -------------------------------------------------
-
-            metric_col4, metric_col5, metric_col6 = st.columns(3)
-
-            metric_col4.metric(
-                "F1 Score",
-                f"{f1:.4f}"
-            )
-
-            metric_col5.metric(
-                "AUC Score",
-                f"{auc:.4f}"
-            )
-
-            metric_col6.metric(
-                "MCC Score",
-                f"{mcc:.4f}"
-            )
-
-
-        # =====================================================
+        # -------------------------------------------------
         # CONFUSION MATRIX
-        # =====================================================
+        # -------------------------------------------------
 
-        with st.expander(
-                "Confusion Matrix",
-                expanded=True
-        ):
-
-            cm_df = pd.DataFrame(
-                cm,
-                index=[
-                    "Actual <=50K",
-                    "Actual >50K"
-                ],
-                columns=[
-                    "Predicted <=50K",
-                    "Predicted >50K"
-                ]
-            )
-
-            st.dataframe(
-                cm_df,
-                use_container_width=True
-            )
+        cm = confusion_matrix(
+            y_test,
+            y_pred
+        )
 
 
-        # =====================================================
+        # -------------------------------------------------
         # CLASSIFICATION REPORT
-        # =====================================================
+        # -------------------------------------------------
 
-        with st.expander(
-                "Classification Report",
-                expanded=False
-        ):
-
-            report_df = pd.DataFrame(
-                report
-            ).transpose()
-
-            st.dataframe(
-                report_df,
-                use_container_width=True
-            )
+        report = classification_report(
+            y_test,
+            y_pred,
+            output_dict=True,
+            zero_division=0
+        )
 
 
     except Exception as e:
+
+        processing_error = e
+
+
+    # =====================================================
+    # REMOVE LOADER
+    # =====================================================
+
+    loader_placeholder.empty()
+
+
+    # =====================================================
+    # HANDLE PROCESSING ERROR
+    # =====================================================
+
+    if processing_error is not None:
 
         st.error(
             "An error occurred while generating predictions."
         )
 
-        st.exception(e)
+        st.exception(
+            processing_error
+        )
+
+        st.stop()
+
+
+    # =====================================================
+    # PREDICTION RESULTS
+    # =====================================================
+
+    with st.expander(
+            "Prediction Results",
+            expanded=True
+    ):
+
+        result_df = df.copy()
+
+        result_df["Predicted Income"] = y_pred
+
+        st.dataframe(
+            result_df,
+            use_container_width=True
+        )
+
+
+        # -------------------------------------------------
+        # DOWNLOAD PREDICTIONS
+        # -------------------------------------------------
+
+        csv_data = result_df.to_csv(
+            index=False
+        )
+
+        st.download_button(
+            label="Download Predictions",
+            data=csv_data,
+            file_name="income_predictions.csv",
+            mime="text/csv"
+        )
+
+
+    # =====================================================
+    # MODEL EVALUATION
+    # =====================================================
+
+    with st.expander(
+            "Model Evaluation",
+            expanded=True
+    ):
+
+        st.write(
+            f"Selected Model: *{selected_model}*"
+        )
+
+        st.write(
+            "Evaluation Metrics"
+        )
+
+
+        # -------------------------------------------------
+        # FIRST ROW
+        # -------------------------------------------------
+
+        metric_col1, metric_col2, metric_col3 = st.columns(3)
+
+        metric_col1.metric(
+            "Accuracy",
+            f"{accuracy:.4f}"
+        )
+
+        metric_col2.metric(
+            "Precision",
+            f"{precision:.4f}"
+        )
+
+        metric_col3.metric(
+            "Recall",
+            f"{recall:.4f}"
+        )
+
+
+        # -------------------------------------------------
+        # SECOND ROW
+        # -------------------------------------------------
+
+        metric_col4, metric_col5, metric_col6 = st.columns(3)
+
+        metric_col4.metric(
+            "F1 Score",
+            f"{f1:.4f}"
+        )
+
+        metric_col5.metric(
+            "AUC Score",
+            f"{auc:.4f}"
+        )
+
+        metric_col6.metric(
+            "MCC Score",
+            f"{mcc:.4f}"
+        )
+
+
+    # =====================================================
+    # CONFUSION MATRIX
+    # =====================================================
+
+    with st.expander(
+            "Confusion Matrix",
+            expanded=True
+    ):
+
+        cm_df = pd.DataFrame(
+            cm,
+            index=[
+                "Actual <=50K",
+                "Actual >50K"
+            ],
+            columns=[
+                "Predicted <=50K",
+                "Predicted >50K"
+            ]
+        )
+
+        st.dataframe(
+            cm_df,
+            use_container_width=True
+        )
+
+
+    # =====================================================
+    # CLASSIFICATION REPORT
+    # =====================================================
+
+    with st.expander(
+            "Classification Report",
+            expanded=False
+    ):
+
+        report_df = pd.DataFrame(
+            report
+        ).transpose()
+
+        st.dataframe(
+            report_df,
+            use_container_width=True
+        )
